@@ -1,5 +1,5 @@
 /* =========================================================
-   William Firenze — portfolio · UI, i18n, leaderboard
+   William Firenze — UI, lingua, classifica
    ========================================================= */
 (function () {
   'use strict';
@@ -7,17 +7,12 @@
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
-  var LS = {
-    best: 'rb_best',
-    name: 'rb_name',
-    lang: 'wf_lang',
-    local: 'rb_local_board'
-  };
+  var LS = { best: 'rb_best', name: 'rb_name', lang: 'wf_lang', local: 'rb_local_board' };
   function get(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
   function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
   /* =======================================================
-     1 · i18n
+     1 · lingua
      ======================================================= */
   var lang = get(LS.lang, 'it') === 'en' ? 'en' : 'it';
 
@@ -30,59 +25,24 @@
     var input = $('#playerName');
     if (input) input.placeholder = lang === 'it' ? 'IL TUO NOME' : 'YOUR NAME';
   }
-  function toggleLang() {
+  var langBtn = $('#langBtn');
+  if (langBtn) langBtn.addEventListener('click', function () {
     lang = lang === 'it' ? 'en' : 'it';
     set(LS.lang, lang);
     applyLang();
-    startTyping();
-  }
-  var langBtn = $('#langBtn');
-  if (langBtn) langBtn.addEventListener('click', toggleLang);
+    loadTeaser();
+  });
   applyLang();
 
   /* =======================================================
-     2 · nav
+     2 · scroll
      ======================================================= */
-  var nav = $('#nav'), burger = $('#burger'), navLinks = $('#navLinks');
-
-  function onScroll() {
+  var progress = $('#scrollProgress');
+  window.addEventListener('scroll', function () {
     var y = window.scrollY || document.documentElement.scrollTop;
-    nav.classList.toggle('is-stuck', y > 8);
     var doc = document.documentElement.scrollHeight - window.innerHeight;
-    var p = doc > 0 ? (y / doc) * 100 : 0;
-    $('#scrollProgress').style.width = p + '%';
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-
-  if (burger) {
-    burger.addEventListener('click', function () {
-      var open = navLinks.classList.toggle('is-open');
-      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    navLinks.addEventListener('click', function (e) {
-      if (e.target.tagName === 'A') {
-        navLinks.classList.remove('is-open');
-        burger.setAttribute('aria-expanded', 'false');
-      }
-    });
-  }
-
-  // active section highlight
-  var sections = ['about', 'work', 'skills', 'certs', 'contact']
-    .map(function (id) { return document.getElementById(id); })
-    .filter(Boolean);
-  if ('IntersectionObserver' in window && sections.length) {
-    var so = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (!en.isIntersecting) return;
-        $$('.nav__links a').forEach(function (a) {
-          a.classList.toggle('is-active', a.getAttribute('href') === '#' + en.target.id);
-        });
-      });
-    }, { rootMargin: '-45% 0px -50% 0px' });
-    sections.forEach(function (s) { so.observe(s); });
-  }
+    progress.style.width = (doc > 0 ? (y / doc) * 100 : 0) + '%';
+  }, { passive: true });
 
   var topBtn = $('[data-scroll-top]');
   if (topBtn) topBtn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
@@ -91,7 +51,7 @@
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
   /* =======================================================
-     3 · reveal + counters
+     3 · reveal
      ======================================================= */
   var reveals = $$('.reveal');
   if ('IntersectionObserver' in window) {
@@ -107,68 +67,8 @@
     reveals.forEach(function (el) { el.classList.add('is-in'); });
   }
 
-  var counters = $$('.count');
-  if ('IntersectionObserver' in window && counters.length) {
-    var co = new IntersectionObserver(function (entries, obs) {
-      entries.forEach(function (en) {
-        if (!en.isIntersecting) return;
-        obs.unobserve(en.target);
-        var el = en.target,
-            to = parseFloat(el.getAttribute('data-to')) || 0,
-            suffix = el.getAttribute('data-suffix') || '',
-            t0 = performance.now(), dur = 1100;
-        (function step(t) {
-          var k = Math.min(1, (t - t0) / dur);
-          var e = 1 - Math.pow(1 - k, 3);
-          el.textContent = Math.round(to * e) + (k === 1 ? suffix : '');
-          if (k < 1) requestAnimationFrame(step);
-        })(t0);
-      });
-    }, { threshold: 0.4 });
-    counters.forEach(function (c) { co.observe(c); });
-  }
-
   /* =======================================================
-     4 · typed role line
-     ======================================================= */
-  var ROLES = {
-    it: [
-      'Infra Managed Service Sr Analyst @ Accenture',
-      'Oracle Database Administrator · Exadata & RAC',
-      'Oracle Cloud Infrastructure · migrazioni e upgrade',
-      'PostgreSQL · GoldenGate · Data Guard · RMAN',
-      'Alta affidabilita per produzione mission-critical'
-    ],
-    en: [
-      'Infra Managed Service Sr Analyst @ Accenture',
-      'Oracle Database Administrator · Exadata & RAC',
-      'Oracle Cloud Infrastructure · migrations & upgrades',
-      'PostgreSQL · GoldenGate · Data Guard · RMAN',
-      'High availability for mission-critical production'
-    ]
-  };
-  var typedEl = $('#typed'), typeTimer = null;
-
-  function startTyping() {
-    if (!typedEl) return;
-    clearTimeout(typeTimer);
-    var list = ROLES[lang], i = 0, j = 0, del = false;
-    typedEl.textContent = '';
-    (function tick() {
-      var word = list[i];
-      j += del ? -1 : 1;
-      typedEl.textContent = word.slice(0, j);
-      var wait = del ? 26 : 46;
-      if (!del && j === word.length) { del = true; wait = 1900; }
-      else if (del && j === 0) { del = false; i = (i + 1) % list.length; wait = 240; }
-      typeTimer = setTimeout(tick, wait);
-    })();
-  }
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) startTyping();
-  else if (typedEl) typedEl.textContent = ROLES[lang][0];
-
-  /* =======================================================
-     5 · leaderboard API
+     4 · classifica
      ======================================================= */
   var API = '/api/leaderboard';
   var API_FALLBACK = '/.netlify/functions/leaderboard';
@@ -177,7 +77,6 @@
     try { return JSON.parse(get(LS.local, '[]')) || []; } catch (e) { return []; }
   }
   function writeLocal(entries) { set(LS.local, JSON.stringify(entries.slice(0, 50))); }
-
   function pushLocal(name, score) {
     var list = readLocal();
     list.push({ name: name, score: score, date: new Date().toISOString() });
@@ -200,8 +99,8 @@
     });
   }
 
-  // Ultima spiaggia: il file JSON statico servito dal sito stesso.
-  // Percorso relativo, cosi funziona anche su GitHub Pages in sottocartella.
+  // Ultima spiaggia: il file JSON statico del sito. Percorso relativo,
+  // cosi funziona anche su GitHub Pages in sottocartella.
   function fetchStatic() {
     return fetch('data/leaderboard.json', { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : []; })
@@ -211,7 +110,6 @@
       });
   }
 
-  // Unisce i punteggi salvati in locale a quelli pubblici (quando non c'e' scrittura server)
   function withLocal(data) {
     var mine = readLocal();
     if (!mine.length) return data;
@@ -269,16 +167,16 @@
   loadTeaser();
 
   /* =======================================================
-     6 · game modal
+     5 · gioco
      ======================================================= */
-  var modal   = $('#gameModal'),
-      canvas  = $('#gameCanvas'),
-      scrStart= $('#scrStart'),
-      scrOver = $('#scrOver'),
-      gTip    = $('#gTip'),
-      hudScore= $('#hudScore'),
-      hudCombo= $('#hudCombo'),
-      hudBest = $('#hudBest'),
+  var modal    = $('#gameModal'),
+      canvas   = $('#gameCanvas'),
+      scrStart = $('#scrStart'),
+      scrOver  = $('#scrOver'),
+      gTip     = $('#gTip'),
+      hudScore = $('#hudScore'),
+      hudCombo = $('#hudCombo'),
+      hudBest  = $('#hudBest'),
       overScore = $('#overScore'),
       overBest  = $('#overBest'),
       saveForm  = $('#saveForm'),
@@ -286,12 +184,12 @@
       saveBtn   = $('#saveBtn'),
       saveMsg   = $('#saveMsg'),
       gameBoard = $('#gameBoard'),
-      boardSrc  = $('#boardSrc');
+      boardSrc  = $('#boardSrc'),
+      teaserBest = $('#teaserBest');
 
   var best = parseInt(get(LS.best, '0'), 10) || 0;
   var game = null, lastScore = 0, savedThisRound = false;
 
-  var teaserBest = $('#teaserBest');
   function paintBest() {
     if (hudBest) hudBest.textContent = best;
     if (overBest) overBest.textContent = best;
@@ -385,7 +283,6 @@
     }
   });
 
-  /* ---- save score ---- */
   saveForm.addEventListener('submit', function (e) {
     e.preventDefault();
     if (savedThisRound) return;
@@ -425,7 +322,7 @@
       });
   });
 
-  /* easter egg: konami-lite — type "sql" anywhere to open the game */
+  /* piccolo vezzo: digitare "sql" apre il gioco */
   var buf = '';
   document.addEventListener('keydown', function (e) {
     if (!modal.hidden) return;

@@ -5,13 +5,12 @@ Sito statico (zero build, zero dipendenze) + una Netlify Function che usa
 
 ```
 william/
-├─ index.html                        pagina unica (IT / EN)
+├─ index.html                        pagina unica, centrata, senza nav (IT / EN)
 ├─ assets/
 │  ├─ css/style.css
-│  ├─ js/main.js                     UI, i18n, classifica
+│  ├─ js/main.js                     UI, lingua, classifica
 │  ├─ js/game.js                     il gioco ROLLBACK
-│  ├─ img/william.jpg                foto profilo
-│  └─ files/CV_William_Firenze_2026_EN.pdf
+│  └─ img/william.jpg                foto profilo
 ├─ data/leaderboard.json             ← il "database" (viene committato dalla function)
 ├─ netlify/functions/leaderboard.mjs endpoint GET/POST
 └─ netlify.toml

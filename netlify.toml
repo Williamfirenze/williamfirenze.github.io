@@ -17,7 +17,9 @@
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    # i nomi dei file non cambiano tra una versione e l'altra:
+    # niente cache "immutable", o chi torna vedrebbe il sito vecchio
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/data/leaderboard.json"
