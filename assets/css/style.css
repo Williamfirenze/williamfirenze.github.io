@@ -106,8 +106,16 @@ h1:hover .outline{ color:var(--accent); -webkit-text-stroke-color:var(--accent);
 .hero__where{
   display:inline-flex; align-items:center; gap:9px; font-size:13px; font-weight:500;
   color:var(--ink-2); border:1px solid var(--line); background:#fff;
-  padding:6px 15px 6px 12px; border-radius:999px; margin:0 0 30px;
+  padding:6px 15px 6px 12px; border-radius:999px; margin:0 0 14px;
 }
+.hero__founder{ font-size:13.5px; color:var(--ink-3); margin:0 0 30px; }
+.hero__founder a{
+  color:var(--ink); font-weight:600;
+  background-image:linear-gradient(var(--accent),var(--accent));
+  background-size:0% 1.5px; background-position:0 100%; background-repeat:no-repeat;
+  transition:background-size .3s cubic-bezier(.2,.8,.2,1), color .25s;
+}
+.hero__founder a:hover{ color:var(--accent); background-size:100% 1.5px; }
 .hero__where .dot{
   width:7px; height:7px; border-radius:50%; background:var(--ok);
   box-shadow:0 0 0 3px rgba(20,122,69,.14); animation:blip 2.4s infinite;
@@ -181,30 +189,6 @@ a.cert:hover{ transform:translateY(-3px); box-shadow:var(--shadow); border-color
 .game-best b{ color:#fff; }
 .sec--game .btn--play{ background:#fff; color:var(--ink); }
 .sec--game .btn--play:hover{ background:var(--accent); color:#fff; }
-
-.lb-preview{
-  border:1px solid rgba(255,255,255,.16); border-radius:var(--r);
-  padding:18px 22px; background:rgba(255,255,255,.035);
-  max-width:400px; margin:34px auto 0; text-align:left;
-}
-.lb-preview h3{ font-size:11px; color:rgba(255,255,255,.44); letter-spacing:.1em; font-weight:500; margin:0 0 12px; }
-
-/* classifica */
-.lb{ list-style:none; margin:0; padding:0; display:grid; gap:2px; }
-.lb li{
-  display:grid; grid-template-columns:26px 1fr auto; align-items:center; gap:12px;
-  padding:8px 0; font-size:13.5px; border-bottom:1px solid rgba(255,255,255,.08);
-}
-.lb li:last-child{ border-bottom:0; }
-.lb .r{ font-family:var(--mono); font-size:11.5px; opacity:.5; }
-.lb .n{ font-weight:600; letter-spacing:-.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.lb .s{ font-family:var(--mono); font-weight:700; font-size:13px; font-variant-numeric:tabular-nums; }
-.lb li.top .r{ opacity:1; color:#ffca28; }
-.lb li.me{ background:rgba(255,255,255,.08); border-radius:6px; padding-inline:8px; }
-.lb__empty{ display:block !important; opacity:.45; font-size:12px; }
-.lb--game li{ border-bottom-color:var(--line); color:var(--ink); }
-.lb--game li.top .r{ color:var(--accent); }
-.lb--game li.me{ background:var(--accent-s); }
 
 /* contatti */
 .contact__big{
@@ -300,21 +284,13 @@ html[lang="en"] .lang .lang__b{ color:var(--ink); }
 .g-final span{ font-size:9.5px; color:var(--ink-3); letter-spacing:.11em; }
 .g-final b{ font-size:3rem; font-weight:800; letter-spacing:-.05em; line-height:1; font-variant-numeric:tabular-nums; }
 
-.g-save{ display:flex; gap:8px; margin-bottom:8px; }
-.g-save input{
-  flex:1; min-width:0; padding:11px 15px; border:1px solid var(--line-2); border-radius:999px;
-  font-family:var(--mono); font-size:13px; text-transform:uppercase; letter-spacing:.06em;
-  outline:none; transition:border-color .2s; background:#fff; color:var(--ink); text-align:center;
+.g-new{
+  display:inline-block; font-size:10px; letter-spacing:.16em; color:#fff;
+  background:var(--accent); padding:5px 13px; border-radius:999px; margin:0 0 20px;
+  animation:newpop .45s cubic-bezier(.2,.9,.25,1);
 }
-.g-save input:focus{ border-color:var(--ink); }
-.g-save input::placeholder{ text-transform:none; letter-spacing:0; color:var(--ink-3); font-family:var(--sans); }
-.g-msg{ font-size:11px; min-height:1.3em; margin:0 0 14px; color:var(--ink-3); }
-.g-msg.ok{ color:var(--ok); } .g-msg.err{ color:var(--accent); }
-
-.g-board{ text-align:left; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:16px; background:var(--bg-alt); }
-.g-board h4{ font-size:9.5px; letter-spacing:.12em; color:var(--ink-3); margin:0 0 8px; font-weight:500; display:flex; gap:8px; align-items:center; }
-.g-board h4 i{ font-style:normal; font-size:9px; opacity:.7; margin-left:auto; }
-.lb--game{ max-height:190px; overflow:auto; }
+.g-new[hidden]{ display:none; }
+@keyframes newpop{ from{opacity:0; transform:scale(.7)} to{opacity:1; transform:none} }
 .g-actions{ display:flex; gap:9px; justify-content:center; }
 
 .g-tip{
