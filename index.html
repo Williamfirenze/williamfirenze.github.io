@@ -194,6 +194,11 @@
         <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>
         <span>Press PLAY</span>
       </button>
+
+      <div class="lb-preview">
+        <h3 class="mono">/ leaderboard</h3>
+        <ol class="lb" id="teaserBoard"><li class="lb__empty mono">…</li></ol>
+      </div>
     </div>
   </div>
 </section>
@@ -268,6 +273,17 @@
           </div>
 
           <p class="g-new mono" id="newBest" hidden>NEW BEST</p>
+
+          <form class="g-save" id="saveForm" autocomplete="off" hidden>
+            <input id="playerName" maxlength="14" placeholder="YOUR NAME" aria-label="Name" required>
+            <button class="btn btn--play" type="submit" id="saveBtn">SAVE</button>
+          </form>
+          <p class="g-msg mono" id="saveMsg"></p>
+
+          <div class="g-board">
+            <h4 class="mono">LEADERBOARD <i id="boardSrc"></i></h4>
+            <ol class="lb lb--game" id="gameBoard"><li class="lb__empty mono">…</li></ol>
+          </div>
 
           <div class="g-actions">
             <button class="btn btn--play" id="btnRetry" type="button">PLAY AGAIN</button>

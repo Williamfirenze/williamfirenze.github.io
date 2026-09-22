@@ -86,9 +86,65 @@ perfetto sopravvive 20 minuti filati oltre i 3800 punti senza mai morire,
 anche disattivando il VACUUM. Un bot con riflessi umani muore fra i 65 e i
 335 punti.
 
-Il record personale è salvato nel browser di chi gioca (`localStorage`), non
-esiste nessuna classifica condivisa: un sito statico non può scriverla da
-nessuna parte.
+Il record personale è nel browser di chi gioca (`localStorage`). La classifica
+condivisa invece sta in `data/leaderboard.json`, in questo repo.
+
+---
+
+## La classifica
+
+Il sito è statico e non può scrivere da solo su GitHub: servirebbe un token, e
+un token nel JavaScript della pagina sarebbe pubblico. Il token vive quindi in
+un **Cloudflare Worker** (`worker/leaderboard.js`), che è l'unica cosa che
+parla con l'API di GitHub. Ogni punteggio che entra in classifica diventa un
+commit su `data/leaderboard.json`.
+
+### Come è fatta
+
+- **un record per nome**: di ogni giocatore resta solo il migliore
+- si scrive **solo se il punteggio migliora** o entra nella top 100 — un
+  peggioramento non genera nessun commit
+- letture in cache 20 s, così i caricamenti del sito non consumano API GitHub
+- messaggi di commit `rollback: NOME → PUNTI [skip ci]`
+- CORS ristretto all'origine del sito
+- controllo di plausibilità: punteggio massimo 5000 e non più di
+  `20 + 15 × secondi` per partita (un giocatore perfetto fa ~3 punti/secondo)
+
+Il controllo è un dosso, non una serratura: l'endpoint è pubblico e chi sa
+usare `curl` può comunque inventarsi un punteggio. Su un sito statico non c'è
+modo di impedirlo davvero.
+
+### Messa in funzione
+
+1. **Token GitHub** — *Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens*. Repository access: *Only select repositories* →
+   `williamfirenze.github.io`. Permissions → Repository permissions →
+   **Contents: Read and write**. Nient'altro. Segnare la scadenza in agenda.
+2. **Worker** — [dash.cloudflare.com](https://dash.cloudflare.com) →
+   *Workers & Pages → Create → Worker*, nome `rollback-leaderboard`, poi
+   *Edit code* e incollare `worker/leaderboard.js`. Deploy.
+3. **Variabili** — nel Worker, *Settings → Variables and Secrets*:
+
+   | Nome | Tipo | Valore |
+   |---|---|---|
+   | `GITHUB_TOKEN` | Secret | il token |
+   | `GITHUB_OWNER` | Text | `Williamfirenze` |
+   | `GITHUB_REPO` | Text | `williamfirenze.github.io` |
+   | `GITHUB_BRANCH` | Text | `main` |
+   | `ALLOWED_ORIGINS` | Text | `https://williamfirenze.github.io` |
+
+4. **Collegare il sito** — in cima a `assets/js/main.js`, unica riga da toccare:
+
+   ```js
+   var API = 'https://rollback-leaderboard.<sottodominio>.workers.dev';
+   ```
+
+   Senza barra finale. Finché resta `''` il sito funziona lo stesso: la
+   classifica viene letta dal file statico e il salvataggio è nascosto.
+
+Da terminale, in alternativa: `cd worker && npx wrangler deploy` e
+`npx wrangler secret put GITHUB_TOKEN` (le altre variabili sono in
+`wrangler.toml`). Il token non va mai nel repo.
 
 Extra: `M` disattiva l'audio, `ESC` chiude la finestra, digitare `sql` sulla
 pagina apre il gioco.

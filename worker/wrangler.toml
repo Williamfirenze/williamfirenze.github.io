@@ -1,0 +1,14 @@
+# Deploy da terminale:  npx wrangler deploy
+# Il token NON va qui: si mette come Secret
+#   npx wrangler secret put GITHUB_TOKEN
+# oppure dal pannello Cloudflare (Settings -> Variables -> Add secret)
+
+name = "rollback-leaderboard"
+main = "leaderboard.js"
+compatibility_date = "2026-01-01"
+
+[vars]
+GITHUB_OWNER    = "Williamfirenze"
+GITHUB_REPO     = "williamfirenze.github.io"
+GITHUB_BRANCH   = "main"
+ALLOWED_ORIGINS = "https://williamfirenze.github.io"

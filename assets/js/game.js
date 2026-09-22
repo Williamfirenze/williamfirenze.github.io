@@ -327,7 +327,7 @@
       if (s.dying > 0.85 && !s.reported) {
         s.reported = true;
         this.stop();
-        if (this.opts.onOver) this.opts.onOver(s.score);
+        if (this.opts.onOver) this.opts.onOver(s.score, s.t);
       }
       return;
     }
