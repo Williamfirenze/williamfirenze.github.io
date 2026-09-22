@@ -148,3 +148,44 @@ Da terminale, in alternativa: `cd worker && npx wrangler deploy` e
 
 Extra: `M` disattiva l'audio, `ESC` chiude la finestra, digitare `sql` sulla
 pagina apre il gioco.
+
+---
+
+## Ask William — l'assistente sulla knowledge base
+
+`chat.html` è una pagina dedicata, protetta da codice. **Non è un modello
+linguistico**: non c'è nessuna API, nessuna chiave, nessun costo, e niente di
+quello che viene scritto esce dal browser. Legge `data/kb.json`, capisce la
+domanda e restituisce il runbook giusto.
+
+Cosa sa fare:
+
+- riconosce i codici errore (`ORA-01555`, `TNS-12541`, …) — è il segnale più forte
+- capisce la domanda in italiano e in inglese, anche descritta a parole
+- riconosce l'intento e mostra la sezione giusta: comandi, verifica, rollback,
+  causa, sintomi, prevenzione
+- tiene il contesto: dopo una risposta, "mostrami i comandi" resta sull'articolo
+  aperto, ma `TNS-12541 come lo risolvo` cambia argomento
+- se la domanda esce dalla knowledge base **lo dice**, invece di rispondere a caso
+
+### Admin
+
+`admin.html`, utente `admin`. La password non è in chiaro nel codice (c'è il suo
+SHA-256) ma resta **una porta chiusa, non una serratura**: su un sito statico
+chiunque può leggere il JavaScript e i JSON. Va bene per tenere il pannello fuori
+dai piedi, non per difendere segreti. Stesso discorso per i codici di accesso:
+in `data/users.json` ci sono solo gli hash, quindi l'elenco dei codici validi non
+è leggibile, ma chi modifica il JS in locale entra lo stesso.
+
+Tre schede: **Knowledge base** (importa il JSON generato da Claude, modifica,
+esporta `kb.json`), **Access codes** (genera un codice per collega, esporta
+`users.json`), **How to create a KB** (il prompt e i passi, con pulsante copia).
+
+Tutto resta nel browser: l'admin produce due file che poi carichi in `data/`.
+
+### Il prompt per generare i KB
+
+Sta in `KB_PROMPT.md` e dentro l'admin. Si incolla in qualsiasi chat di Claude,
+sotto si racconta il caso, e restituisce il JSON pronto da importare. Se qualcosa
+non gliel'hai detto, lo mette in `_missing` invece di inventarlo — e l'admin te lo
+segnala nella lista.

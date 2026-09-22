@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "updated": "2026-09-22",
+  "articles": [
+    {
+      "id": "ora-01555-snapshot-too-old",
+      "title": "ORA-01555: snapshot too old",
+      "type": "troubleshooting",
+      "codes": ["ORA-01555"],
+      "products": ["Oracle Database 19c"],
+      "severity": "medium",
+      "updated": "2026-09-22",
+      "tags": ["undo", "long running query", "retention", "batch"],
+      "keywords": ["snapshot too old", "rollback segment", "undo_retention", "consistent read"],
+      "summary": "A long-running query needs a read-consistent image of a block, but the undo it needs has already been overwritten. It surfaces on long batches or reports running while the same tables are heavily updated.",
+      "symptoms": [
+        "The batch fails after running for a long time, never at the start",
+        "ORA-01555 with 'rollback segment number ... with name ... too small'",
+        "It only happens under load, and is hard to reproduce on a quiet system"
+      ],
+      "cause": "UNDO_RETENTION is shorter than the query duration, or the undo tablespace is too small to honour the retention under the write load, so undo blocks get reused before the query finishes.",
+      "resolution": [
+        {
+          "step": "Measure how long the failing statement actually runs and how much undo the system generates.",
+          "command": "SELECT begin_time, end_time, undoblks, maxquerylen\n  FROM v$undostat\n ORDER BY begin_time DESC\n FETCH FIRST 24 ROWS ONLY;"
+        },
+        {
+          "step": "Check the current retention and whether the undo tablespace can guarantee it.",
+          "command": "SHOW PARAMETER undo_retention\n\nSELECT tablespace_name, retention\n  FROM dba_tablespaces\n WHERE contents = 'UNDO';"
+        },
+        {
+          "step": "Raise UNDO_RETENTION above the longest query, then make sure the tablespace has the room to honour it.",
+          "command": "ALTER SYSTEM SET undo_retention = 10800 SCOPE=BOTH;",
+          "note": "10800 = 3 hours. Retention alone guarantees nothing if the tablespace is too small."
+        },
+        {
+          "step": "Grow the undo tablespace or add a datafile if v$undostat shows space pressure.",
+          "command": "ALTER DATABASE DATAFILE '/path/undotbs01.dbf' RESIZE 32G;"
+        }
+      ],
+      "verification": [
+        {
+          "step": "Re-run the batch and confirm maxquerylen stays below the retention with headroom.",
+          "command": "SELECT MAX(maxquerylen) AS longest_query_secs FROM v$undostat;"
+        }
+      ],
+      "rollback": "UNDO_RETENTION can be set back with the same ALTER SYSTEM; it takes effect immediately and needs no restart. A datafile resize upwards cannot be undone without rebuilding the tablespace, so size it deliberately.",
+      "prevention": [
+        "Schedule long reports outside the heavy write window",
+        "Watch maxquerylen in v$undostat as a leading indicator, before users hit the error"
+      ],
+      "references": ["Oracle Database Administrator's Guide — Managing Undo"]
+    },
+    {
+      "id": "listener-tns-12541-no-listener",
+      "title": "TNS-12541: no listener",
+      "type": "troubleshooting",
+      "codes": ["TNS-12541", "ORA-12541"],
+      "products": ["Oracle Database 19c", "Oracle Net"],
+      "severity": "high",
+      "updated": "2026-09-22",
+      "tags": ["listener", "network", "connectivity", "tnsnames"],
+      "keywords": ["no listener", "lsnrctl", "connection refused", "port 1521"],
+      "summary": "The client reached the host but nothing is listening on that port. Almost always the listener is down, listening on a different port or address, or a firewall is dropping the connection.",
+      "symptoms": [
+        "Applications fail to connect while the database itself is up",
+        "tnsping returns TNS-12541",
+        "It often appears right after a server reboot"
+      ],
+      "cause": "The listener process is not running, is bound to a different host or port than the client is using, or the traffic is blocked before it reaches the host.",
+      "resolution": [
+        {
+          "step": "Check whether the listener is running and what it is listening on.",
+          "command": "lsnrctl status"
+        },
+        {
+          "step": "If it is down, start it and read the log rather than assuming it started clean.",
+          "command": "lsnrctl start\ntail -100 $ORACLE_BASE/diag/tnslsnr/$(hostname)/listener/trace/listener.log"
+        },
+        {
+          "step": "Compare the client entry with what the listener actually advertises — host, port and service name must all line up.",
+          "command": "tnsping MYDB\ncat $ORACLE_HOME/network/admin/tnsnames.ora"
+        },
+        {
+          "step": "If the listener is up and correct, test the port from the client host to separate a network problem from a database one.",
+          "command": "nc -zv db-host 1521"
+        }
+      ],
+      "verification": [
+        {
+          "step": "Confirm the service is registered and accepting connections.",
+          "command": "lsnrctl services\nsqlplus user/password@MYDB"
+        }
+      ],
+      "rollback": "Nothing to roll back: starting a listener is not a destructive change. If a listener.ora edit caused the problem, restore the previous copy and reload with lsnrctl reload.",
+      "prevention": [
+        "Make the listener start automatically on boot, and verify it after every reboot",
+        "Keep a copy of listener.ora and tnsnames.ora under version control before touching them"
+      ],
+      "references": ["Oracle Database Net Services Administrator's Guide"]
+    }
+  ]
+}

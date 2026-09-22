@@ -366,3 +366,19 @@ html[lang="en"] .lang .lang__b{ color:var(--ink); }
   .g-final b{ font-size:2.4rem; }
   .g-card h3{ font-size:2rem; }
 }
+
+/* ---------- Ask William (home) ---------- */
+.ask{
+  background:#fff; border:1px solid var(--line); border-radius:var(--r);
+  padding:34px 28px; box-shadow:var(--shadow);
+}
+.ask__line{
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+  font-size:11px; letter-spacing:.06em; color:var(--ink-3); margin:0 0 14px;
+}
+.ask__dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); }
+.ask__note{ font-size:14.5px; color:var(--ink-2); max-width:46ch; margin:0 auto 24px; }
+.foot__adm{
+  font-size:10.5px; color:var(--ink-3); border-bottom:1px solid transparent; transition:.2s;
+}
+.foot__adm:hover{ color:var(--ink); border-bottom-color:var(--line-2); }
