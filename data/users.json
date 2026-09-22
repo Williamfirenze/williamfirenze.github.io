@@ -1,7 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-09-22",
-  "note": "Only SHA-256 hashes of the access codes are stored here. The codes themselves exist nowhere in this repo.",
+  "note": "Only SHA-256 hashes of the access codes are stored here.",
   "users": [
     {
       "h": "88f575f49d9040a030bcadc26ed76aa4963e138c11f3430b902fd52f00fcb49c",
@@ -10,5 +9,6 @@
       "team": "—",
       "active": true
     }
-  ]
+  ],
+  "updated": "2026-09-22"
 }
