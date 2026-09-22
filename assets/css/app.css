@@ -321,3 +321,13 @@
   .bubble.is-streaming > *:last-child::after{ display:none; }
   .chips2{ opacity:1; transform:none; }
 }
+
+/* spiegazione sotto un pulsante di pubblicazione spento */
+.pubhint{
+  flex-basis:100%; text-align:left; background:var(--accent-s);
+  border:1px solid #f2c9c1; border-radius:9px; padding:10px 14px; margin-top:4px;
+  font-size:13px; color:var(--ink-2); cursor:pointer; transition:border-color .2s;
+}
+.pubhint:hover{ border-color:var(--accent); }
+.pubhint b{ color:var(--accent); }
+.pubhint[hidden]{ display:none !important; }

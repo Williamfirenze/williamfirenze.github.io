@@ -526,11 +526,24 @@
   function paintPub() {
     $('#pubUrl').value = pub.url || '';
     $('#pubKey').value = pub.key || '';
+    var ready = pubReady();
     ['#kbPublish', '#usPublish'].forEach(function (sel) {
       var b = $(sel);
       if (!b) return;
-      b.disabled = !pubReady();
-      b.title = pubReady() ? 'Commits straight to the repo' : 'Set it up in the Publishing tab';
+      b.disabled = !ready;
+      b.title = ready ? 'Commits straight to the repo' : 'Set it up in the Publishing tab';
+
+      /* un pulsante spento senza spiegazione e' un difetto: qui dice perche' */
+      var hint = b.parentElement.querySelector('.pubhint');
+      if (!hint) {
+        hint = document.createElement('button');
+        hint.type = 'button';
+        hint.className = 'pubhint';
+        hint.innerHTML = '<b>Publish is off.</b> It needs the Worker address and the publish key — set them in the <u>Publishing</u> tab.';
+        hint.addEventListener('click', function () { $('[data-tab="pub"]').click(); });
+        b.parentElement.appendChild(hint);
+      }
+      hint.hidden = ready;
     });
   }
 
