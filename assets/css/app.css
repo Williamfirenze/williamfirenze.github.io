@@ -257,3 +257,67 @@
   .item{ flex-direction:column; align-items:stretch; gap:10px; }
   .item__a{ justify-content:flex-end; }
 }
+
+/* =========================================================
+   chat — animazione
+   ========================================================= */
+
+/* "sta pensando": etichetta che cambia, non uno spinner muto */
+.think{ display:inline-flex; align-items:center; gap:10px; }
+.think__t{
+  font-size:14px; color:var(--ink-3); transition:opacity .16s ease;
+  background:linear-gradient(90deg,var(--ink-3) 0%,var(--ink) 45%,var(--ink-3) 90%);
+  background-size:220% 100%;
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  animation:sheen 1.9s linear infinite;
+}
+@keyframes sheen{ from{ background-position:120% 0 } to{ background-position:-120% 0 } }
+.think__d{ display:inline-flex; gap:3px; }
+.think__d i{ width:4px; height:4px; border-radius:50%; background:var(--ink-3); animation:bounce 1.2s infinite; }
+.think__d i:nth-child(2){ animation-delay:.15s } .think__d i:nth-child(3){ animation-delay:.3s }
+
+/* i blocchi compaiono man mano che la risposta si scrive */
+.bubble > *{ animation:blockIn .26s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes blockIn{ from{ opacity:0; transform:translateY(5px) } to{ opacity:1; transform:none } }
+
+/* cursore lampeggiante mentre scrive */
+.bubble.is-streaming > *:last-child::after{
+  content:''; display:inline-block; width:7px; height:1.05em; margin-left:2px;
+  background:var(--ink); vertical-align:-2px; border-radius:1px;
+  animation:cursorBlink 1s steps(1) infinite;
+}
+@keyframes cursorBlink{ 50%{ opacity:0 } }
+
+/* i suggerimenti arrivano solo a risposta finita */
+.chips2{ opacity:0; transform:translateY(4px); transition:opacity .3s ease, transform .3s cubic-bezier(.2,.8,.2,1); }
+.chips2.in{ opacity:1; transform:none; }
+.chip2{ transition:border-color .2s, color .2s, transform .18s cubic-bezier(.2,.8,.2,1), background .2s; }
+.chip2:active{ transform:scale(.97); }
+
+/* il pulsante invio diventa stop mentre scrive */
+.send svg{ transition:transform .2s cubic-bezier(.2,.9,.25,1), opacity .15s; }
+.send--stop{ background:var(--accent); }
+.send--stop svg{ opacity:0; transform:scale(.4); }
+.send--stop::after{
+  content:''; position:absolute; width:12px; height:12px; border-radius:3px; background:#fff;
+  animation:blockIn .2s cubic-bezier(.2,.9,.25,1) both;
+}
+.send{ position:relative; }
+
+/* torna in fondo, quando si e' risaliti a rileggere */
+.jump{
+  position:fixed; left:50%; bottom:112px; transform:translate(-50%,14px) scale(.9);
+  width:38px; height:38px; border-radius:50%; border:1px solid var(--line-2);
+  background:#fff; color:var(--ink-2); cursor:pointer; display:grid; place-items:center;
+  box-shadow:0 6px 20px -8px rgba(11,11,12,.35); opacity:0; pointer-events:none; z-index:40;
+  transition:opacity .22s ease, transform .22s cubic-bezier(.2,.8,.2,1);
+}
+.jump.on{ opacity:1; transform:translate(-50%,0) scale(1); pointer-events:auto; }
+.jump:hover{ border-color:var(--ink); color:var(--ink); }
+
+@media (prefers-reduced-motion:reduce){
+  .think__t{ animation:none; -webkit-text-fill-color:var(--ink-3); }
+  .bubble > *{ animation:none; }
+  .bubble.is-streaming > *:last-child::after{ display:none; }
+  .chips2{ opacity:1; transform:none; }
+}

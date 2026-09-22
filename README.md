@@ -5,12 +5,21 @@ backend. Si apre con un doppio clic su `index.html` e funziona identico.
 
 ```
 .
-├─ index.html              pagina unica, tutta in inglese
+├─ index.html              home
+├─ chat/index.html         l'assistente  ->  /chat/   (senza .html)
+├─ admin/index.html        il pannello   ->  /admin/
 ├─ assets/
-│  ├─ css/style.css
-│  ├─ js/main.js           scroll, animazioni, apertura del gioco
+│  ├─ css/style.css        sito
+│  ├─ css/app.css          chat e admin
+│  ├─ js/main.js           scroll, animazioni, gioco, classifica
 │  ├─ js/game.js           il gioco ROLLBACK
+│  ├─ js/kb-engine.js      ricerca sulla knowledge base
+│  ├─ js/chat.js           interfaccia della chat
+│  ├─ js/admin.js          pannello
 │  └─ img/william.jpg      foto profilo
+├─ data/kb.json            i runbook
+├─ data/users.json         hash dei codici di accesso
+├─ data/leaderboard.json   punteggi (lo scrive il Worker: non ricaricarlo a mano)
 ├─ .nojekyll               dice a GitHub Pages di servire i file cosi' come sono
 └─ .gitignore
 ```
@@ -30,7 +39,7 @@ Da lì in poi ogni commit su `main` aggiorna il sito nel giro di un minuto.
 ### Aggiornare i file dal browser
 
 *Add file → Upload files*, poi trascinare **il contenuto** della cartella
-(non la cartella): `index.html`, `assets`, `.nojekyll`, `.gitignore`.
+(non la cartella): `index.html`, `chat`, `admin`, `assets`, `data`, `.nojekyll`, `.gitignore`.
 I file con lo stesso nome vengono sovrascritti.
 
 Due cose che fanno perdere tempo se ce le si dimentica:
@@ -189,3 +198,10 @@ Sta in `KB_PROMPT.md` e dentro l'admin. Si incolla in qualsiasi chat di Claude,
 sotto si racconta il caso, e restituisce il JSON pronto da importare. Se qualcosa
 non gliel'hai detto, lo mette in `_missing` invece di inventarlo — e l'admin te lo
 segnala nella lista.
+
+### Perché chat e admin stanno in una cartella
+
+Per avere `/chat/` invece di `/chat.html`. GitHub Pages serve i file così come
+sono: non esiste una riscrittura che tolga l'estensione. L'unico modo pulito è
+che ogni pagina sia l'`index.html` della propria cartella. Di conseguenza dentro
+`chat/` e `admin/` i percorsi relativi partono da `../`.

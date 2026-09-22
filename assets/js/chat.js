@@ -28,7 +28,31 @@
   }
   function toBottom() { scroll.scrollTop = scroll.scrollHeight; }
 
-  /* ---------- rendering messaggi ---------- */
+  /* =======================================================
+     rendering e animazione dei messaggi
+     ======================================================= */
+  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* l'autoscroll insegue solo se l'utente e' gia' in fondo:
+     se sta rileggendo piu' su, non gli si strappa la pagina sotto i piedi */
+  function nearBottom() {
+    return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 90;
+  }
+  var stick = true;
+  scroll.addEventListener('scroll', function () {
+    stick = nearBottom();
+    if (jump) jump.classList.toggle("on", !stick);
+  }, { passive: true });
+  function follow() { if (stick) scroll.scrollTop = scroll.scrollHeight; }
+
+  var jump = document.createElement('button');
+  jump.className = 'jump';
+  jump.type = 'button';
+  jump.setAttribute('aria-label', 'Scroll to the latest message');
+  jump.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14m0 0 6-6m-6 6-6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  jump.addEventListener('click', function () { stick = true; jump.classList.remove('on'); follow(); });
+  document.body.appendChild(jump);
+
   function bubble(html, mine) {
     var m = document.createElement('div');
     m.className = 'msg' + (mine ? ' msg--me' : '');
@@ -38,24 +62,129 @@
       av.textContent = (profile && profile.name ? profile.name : '?').slice(0, 2).toUpperCase();
     } else {
       var img = document.createElement('img');
-      img.src = 'assets/img/william.jpg'; img.alt = 'William';
+      img.src = '../assets/img/william.jpg'; img.alt = '';
       av.appendChild(img);
     }
     var body = document.createElement('div');
     body.className = 'msg__body';
     var b = document.createElement('div');
     b.className = 'bubble';
-    b.innerHTML = html;
+    if (html) b.innerHTML = html;
     body.appendChild(b);
     m.appendChild(av); m.appendChild(body);
     stream.appendChild(m);
-    toBottom();
+    follow();
     return b;
   }
 
-  function typing() {
-    var b = bubble('<span class="typing"><i></i><i></i><i></i></span>');
-    return b.parentElement.parentElement;
+  /* ---------- stato "sta pensando" ---------- */
+  var THINK = [
+    'Reading the runbooks',
+    'Matching error codes',
+    'Picking the right section'
+  ];
+  function thinking() {
+    var b = bubble('<span class="think"><span class="think__t">' + THINK[0] +
+      '</span><span class="think__d"><i></i><i></i><i></i></span></span>');
+    b.parentElement.parentElement.setAttribute('aria-busy', 'true');
+    var i = 0, label = b.querySelector('.think__t');
+    var timer = setInterval(function () {
+      i++;
+      if (i >= THINK.length) { clearInterval(timer); return; }
+      label.style.opacity = '0';
+      setTimeout(function () { label.textContent = THINK[i]; label.style.opacity = ''; }, 160);
+    }, 620);
+    return {
+      node: b.parentElement.parentElement,
+      stop: function () { clearInterval(timer); }
+    };
+  }
+
+  /* ---------- rivelazione progressiva ---------- */
+  var streaming = null;   // { cancel: fn }
+
+  function streamInto(el, html, onDone) {
+    el.innerHTML = html;
+    var blocks = Array.prototype.slice.call(el.children);
+    var chipRow = el.querySelector('.chips2');
+
+    if (REDUCED || !blocks.length) {
+      el.classList.remove('is-streaming');
+      onDone();
+      return { cancel: function () {} };
+    }
+
+    // raccoglie i nodi di testo blocco per blocco, poi li svuota
+    var plan = blocks.map(function (bl) {
+      var texts = [];
+      (function walk(n) {
+        for (var c = n.firstChild; c; c = c.nextSibling) {
+          if (c.nodeType === 3) { if (c.nodeValue.trim()) texts.push({ n: c, full: c.nodeValue }); }
+          else if (c.nodeType === 1) walk(c);
+        }
+      })(bl);
+      return { el: bl, texts: texts, instant: bl.classList.contains('code') };
+    });
+
+    var total = 0;
+    plan.forEach(function (p) { p.texts.forEach(function (t) { total += t.full.length; }); });
+    // piu' lunga la risposta, piu' veloce scorre: mai oltre ~5 secondi
+    var rate = Math.max(2, Math.min(16, Math.round(total / 260)));
+
+    plan.forEach(function (p) {
+      p.el.hidden = true;
+      if (!p.instant) p.texts.forEach(function (t) { t.n.nodeValue = ''; });
+    });
+    el.classList.add('is-streaming');
+
+    var bi = 0, ti = 0, ci = 0, raf = null, dead = false;
+
+    function finish() {
+      if (dead) return;
+      dead = true;
+      if (raf) cancelAnimationFrame(raf);
+      plan.forEach(function (p) {
+        p.el.hidden = false;
+        p.texts.forEach(function (t) { t.n.nodeValue = t.full; });
+      });
+      el.classList.remove('is-streaming');
+      if (chipRow) chipRow.classList.add('in');
+      follow();
+      onDone();
+    }
+
+    function step() {
+      if (dead) return;
+      if (bi >= plan.length) { finish(); return; }
+      var p = plan[bi];
+
+      if (p.el.hidden) {
+        p.el.hidden = false;
+        follow();
+        if (p.instant || p.el.classList.contains('chips2')) {
+          // i blocchi di codice e i suggerimenti compaiono interi
+          if (p.el.classList.contains('chips2')) p.el.classList.add('in');
+          bi++; ti = 0; ci = 0;
+          raf = requestAnimationFrame(step);
+          return;
+        }
+      }
+
+      var budget = rate;
+      while (budget > 0) {
+        if (ti >= p.texts.length) { bi++; ti = 0; ci = 0; break; }
+        var t = p.texts[ti];
+        if (ci >= t.full.length) { ti++; ci = 0; continue; }
+        var take = Math.min(budget, t.full.length - ci);
+        ci += take; budget -= take;
+        t.n.nodeValue = t.full.slice(0, ci);
+      }
+      follow();
+      raf = requestAnimationFrame(step);
+    }
+
+    raf = requestAnimationFrame(step);
+    return { cancel: finish };
   }
 
   function codeBlock(text) {
@@ -228,26 +357,48 @@
 
   /* ---------- invio ---------- */
   var busy = false;
-  function send(text) {
-    text = String(text || '').trim();
-    if (!text || busy) return;
-    busy = true; sendBtn.disabled = true;
-    bubble(esc(text).replace(/\n/g, '<br>'), true);
-    input.value = ''; input.style.height = 'auto';
 
-    var t = typing();
-    var delay = 260 + Math.min(text.length * 6, 500);
-    setTimeout(function () {
-      t.remove();
-      bubble(answer(text));
-      busy = false; sendBtn.disabled = false;
-      input.focus();
-    }, delay);
+  function setBusy(v) {
+    busy = v;
+    sendBtn.classList.toggle('send--stop', v);
+    sendBtn.setAttribute('aria-label', v ? 'Stop' : 'Send');
   }
 
-  sendForm.addEventListener('submit', function (e) { e.preventDefault(); send(input.value); });
+  function send(text) {
+    text = String(text || '').trim();
+    if (!text) return;
+    if (busy) { if (streaming) streaming.cancel(); return; }
+
+    setBusy(true);
+    bubble(esc(text).replace(/\n/g, '<br>'), true);
+    input.value = ''; input.style.height = 'auto';
+    stick = true;
+
+    var reply = answer(text);                 // il lavoro vero: ricerca e scelta sezione
+    var t = thinking();
+    // pausa proporzionata: abbastanza da vedersi, mai da far aspettare
+    var wait = REDUCED ? 0 : Math.min(1100, 420 + Math.round(text.length * 7));
+
+    setTimeout(function () {
+      t.stop();
+      t.node.remove();
+      var b = bubble('');
+      b.parentElement.parentElement.setAttribute('aria-live', 'polite');
+      streaming = streamInto(b, reply, function () {
+        streaming = null;
+        setBusy(false);
+        input.focus();
+      });
+    }, wait);
+  }
+
+  sendForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (busy) { if (streaming) streaming.cancel(); return; }
+    send(input.value);
+  });
   input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input.value); }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (busy && streaming) streaming.cancel(); else send(input.value); }
   });
   input.addEventListener('input', function () {
     input.style.height = 'auto';
@@ -256,7 +407,7 @@
 
   stream.addEventListener('click', function (e) {
     var ask = e.target.closest('[data-ask]');
-    if (ask) { send(ask.getAttribute('data-ask')); return; }
+    if (ask) { if (busy) return; send(ask.getAttribute('data-ask')); return; }
     var cp = e.target.closest('[data-copy]');
     if (cp) {
       var pre = cp.parentElement.querySelector('pre');
@@ -275,7 +426,7 @@
     });
   }
 
-  var kbReady = loadJSON('data/kb.json')
+  var kbReady = loadJSON('../data/kb.json')
     .then(function (d) {
       KBD.articles = Array.isArray(d) ? d : (d.articles || []);
       KBD.meta = Array.isArray(d) ? {} : d;
@@ -315,7 +466,7 @@
     gateMsg.className = 'note';
     gateMsg.textContent = 'checking…';
 
-    Promise.all([kbReady, loadJSON('data/users.json').catch(function () { return { users: [] }; }), sha256(raw)])
+    Promise.all([kbReady, loadJSON('../data/users.json').catch(function () { return { users: [] }; }), sha256(raw)])
       .then(function (r) {
         var users = (r[1] && r[1].users) || [];
         var hash = r[2];

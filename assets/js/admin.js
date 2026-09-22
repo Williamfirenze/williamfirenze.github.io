@@ -169,7 +169,7 @@
   });
 
   $('#kbLoad').addEventListener('click', function () {
-    fetch('data/kb.json', { cache: 'no-store' })
+    fetch('../data/kb.json', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var arts = Array.isArray(d) ? d : (d.articles || []);
@@ -381,7 +381,7 @@
   });
 
   $('#usLoad').addEventListener('click', function () {
-    fetch('data/users.json', { cache: 'no-store' })
+    fetch('../data/users.json', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         users = (d.users || []).map(function (u) {
