@@ -190,7 +190,24 @@ Tre schede: **Knowledge base** (importa il JSON generato da Claude, modifica,
 esporta `kb.json`), **Access codes** (genera un codice per collega, esporta
 `users.json`), **How to create a KB** (il prompt e i passi, con pulsante copia).
 
-Tutto resta nel browser: l'admin produce due file che poi carichi in `data/`.
+### Pubblicazione diretta
+
+Con `ADMIN_TOKEN` impostato sul Worker, i pulsanti **Publish to GitHub**
+committano `kb.json` e `users.json` direttamente nel repo: niente download e
+ricarica a mano. Senza, i pulsanti restano spenti e resta il download.
+
+**La chiave di pubblicazione e' la vera serratura, non la login.** La password
+dell'admin nasconde solo il pannello; chi legge il JavaScript la aggira. Quello
+che impedisce a un estraneo di riscriverti la knowledge base e' `ADMIN_TOKEN`,
+che vive nel Worker e non sta da nessuna parte nel repo. La si genera dalla
+scheda *Publishing* e si incolla su Cloudflare come Secret.
+
+L'endpoint della classifica resta volutamente aperto: e' un gioco. Questi due no.
+
+Dettaglio che conta: i commit di `kb.json` e `users.json` **non** portano
+`[skip ci]`, perche' il sito legge quei file da Pages e il deploy deve
+ripartire. Quelli della classifica invece si', perche' il sito la legge dal
+Worker e un rebuild non servirebbe a niente.
 
 ### Il prompt per generare i KB
 

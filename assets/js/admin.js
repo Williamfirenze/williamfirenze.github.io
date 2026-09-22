@@ -13,7 +13,7 @@
   var PWD_H = 'ef299d274a8b2dff395ec8104d842f4ac3bd9f4927ba9a5348a13c0069b5b673';
   var USER = 'admin';
 
-  var LS = { kb: 'wf_admin_kb', us: 'wf_admin_users', codes: 'wf_admin_codes' };
+  var LS = { kb: 'wf_admin_kb', us: 'wf_admin_users', codes: 'wf_admin_codes', pub: 'wf_admin_pub' };
   function lget(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
   function lset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 
@@ -312,22 +312,32 @@
     });
   }
 
-  $('#kbExport').addEventListener('click', function () {
-    if (!kb.length) { msg($('#kbMsg'), 'nothing to export', 'err'); return; }
-    var out = kb.map(function (a) {
+
+  /* stessa forma per il download e per la pubblicazione */
+  function exportableKB() {
+    return kb.map(function (a) {
       var c = JSON.parse(JSON.stringify(a));
       delete c._missing;
       ['verification', 'resolution'].forEach(function (k) {
-        c[k] = (c[k] || []).map(function (s) {
-          var o = { step: s.step };
-          if (s.command) o.command = s.command;
-          if (s.note) o.note = s.note;
+        c[k] = (c[k] || []).map(function (st) {
+          var o = { step: st.step };
+          if (st.command) o.command = st.command;
+          if (st.note) o.note = st.note;
           return o;
         });
       });
       return c;
     });
-    download('kb.json', { version: 1, updated: today(), articles: out });
+  }
+  function exportableUsers() {
+    return users.map(function (u) {
+      return { h: u.h, name: u.name, role: u.role || '', team: u.team || '', active: u.active !== false };
+    });
+  }
+
+  $('#kbExport').addEventListener('click', function () {
+    if (!kb.length) { msg($('#kbMsg'), 'nothing to export', 'err'); return; }
+    download('kb.json', { version: 1, updated: today(), articles: exportableKB() });
     msg($('#kbMsg'), 'kb.json downloaded — upload it into data/ in the repo', 'ok');
   });
 
@@ -416,9 +426,7 @@
       version: 1,
       updated: today(),
       note: 'Only SHA-256 hashes of the access codes are stored here. The codes themselves exist nowhere in this repo.',
-      users: users.map(function (u) {
-        return { h: u.h, name: u.name, role: u.role || '', team: u.team || '', active: u.active !== false };
-      })
+      users: exportableUsers()
     });
     msg($('#usMsg'), 'users.json downloaded — upload it into data/ in the repo', 'ok');
   });
@@ -492,6 +500,103 @@
       setTimeout(function () { b.textContent = 'COPY'; }, 1600);
     });
   });
+
+
+  /* =======================================================
+     PUBBLICAZIONE — scrive sul repo passando dal Worker
+     ======================================================= */
+  var pub = lget(LS.pub, { url: 'https://rollback-leaderboard.overeyeinfo.workers.dev', key: '' });
+
+  function pubReady() { return !!(pub.url && pub.key); }
+
+  function publish(path, payload) {
+    if (!pubReady()) return Promise.reject(new Error('publishing is not set up'));
+    return fetch(pub.url.replace(/\/+$/, '') + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': pub.key },
+      body: JSON.stringify(payload)
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+        return j;
+      });
+    });
+  }
+
+  function paintPub() {
+    $('#pubUrl').value = pub.url || '';
+    $('#pubKey').value = pub.key || '';
+    ['#kbPublish', '#usPublish'].forEach(function (sel) {
+      var b = $(sel);
+      if (!b) return;
+      b.disabled = !pubReady();
+      b.title = pubReady() ? 'Commits straight to the repo' : 'Set it up in the Publishing tab';
+    });
+  }
+
+  $('#pubSave').addEventListener('click', function () {
+    pub.url = $('#pubUrl').value.trim().replace(/\/+$/, '');
+    pub.key = $('#pubKey').value.trim();
+    lset(LS.pub, pub);
+    paintPub();
+    msg($('#pubMsg'), pubReady() ? 'saved in this browser' : 'address and key are both required', pubReady() ? 'ok' : 'err');
+  });
+
+  $('#pubGen').addEventListener('click', function () {
+    var b = new Uint8Array(32);
+    crypto.getRandomValues(b);
+    var key = Array.from(b).map(function (x) { return x.toString(16).padStart(2, '0'); }).join('');
+    $('#pubKey').value = key;
+    var box = $('#pubNew');
+    box.hidden = false;
+    box.innerHTML = '<div class="callout"><p><b>New publish key.</b> Copy it into Cloudflare as the secret <code>ADMIN_TOKEN</code>, then press Save here.</p>' +
+      '<div class="codebox" style="font-size:12px;letter-spacing:.04em;word-break:break-all">' + esc(key) + '</div>' +
+      '<p>Shown once. If you lose it, generate another one and update the Worker.</p></div>';
+    msg($('#pubMsg'), '');
+  });
+
+  $('#pubTest').addEventListener('click', function () {
+    var url = $('#pubUrl').value.trim().replace(/\/+$/, '');
+    if (!url) { msg($('#pubMsg'), 'the Worker address is missing', 'err'); return; }
+    msg($('#pubMsg'), 'checking…');
+    fetch(url + '/ping')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.publishing) msg($('#pubMsg'), 'Worker reachable — publishing is on', 'ok');
+        else msg($('#pubMsg'), 'Worker reachable, but ADMIN_TOKEN is not set on it yet', 'err');
+      })
+      .catch(function () { msg($('#pubMsg'), 'no answer — check the address, or the Worker still runs the old code', 'err'); });
+  });
+
+  $('#kbPublish').addEventListener('click', function () {
+    if (!kb.length) { msg($('#kbMsg'), 'nothing to publish', 'err'); return; }
+    var btn = this; btn.disabled = true;
+    msg($('#kbMsg'), 'publishing…');
+    publish('/kb', { version: 1, articles: exportableKB() })
+      .then(function (d) {
+        msg($('#kbMsg'), 'published — ' + d.count + ' runbook(s) committed. Live in about a minute.', 'ok');
+      })
+      .catch(function (e) { msg($('#kbMsg'), 'not published: ' + e.message, 'err'); })
+      .then(function () { btn.disabled = !pubReady(); });
+  });
+
+  $('#usPublish').addEventListener('click', function () {
+    if (!users.length) { msg($('#usMsg'), 'nothing to publish', 'err'); return; }
+    var btn = this; btn.disabled = true;
+    msg($('#usMsg'), 'publishing…');
+    publish('/users', {
+      version: 1,
+      note: 'Only SHA-256 hashes of the access codes are stored here.',
+      users: exportableUsers()
+    })
+      .then(function (d) {
+        msg($('#usMsg'), 'published — ' + d.count + ' code(s) committed. Live in about a minute.', 'ok');
+      })
+      .catch(function (e) { msg($('#usMsg'), 'not published: ' + e.message, 'err'); })
+      .then(function () { btn.disabled = !pubReady(); });
+  });
+
+  paintPub();
 
   renderKB(); renderUsers();
 
