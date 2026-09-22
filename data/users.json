@@ -8,6 +8,13 @@
       "role": "Owner",
       "team": "—",
       "active": true
+    },
+    {
+      "h": "ee07876e303f810d3dad26bf49e6a5705d1b4f4985ab558887daa6f48a164616",
+      "name": "Andrea",
+      "role": "Manager",
+      "team": "Accenture",
+      "active": true
     }
   ],
   "updated": "2026-09-22"
