@@ -44,11 +44,12 @@
   <!-- ============ PANEL ============ -->
   <main class="adm" id="panel" hidden>
 
+    <div id="pubSetup" hidden></div>
+
     <div class="tabs">
       <button class="tab on" data-tab="kb">Knowledge base</button>
       <button class="tab" data-tab="codes">Access codes</button>
       <button class="tab" data-tab="howto">How to create a KB</button>
-      <button class="tab" data-tab="pub">Publishing</button>
     </div>
 
     <!-- ---------- KB ---------- -->
@@ -147,46 +148,6 @@
       </div>
     </section>
 
-
-    <!-- ---------- PUBLISHING ---------- -->
-    <section class="panel" id="tab-pub" hidden>
-      <h2>Publishing</h2>
-      <p class="sub">With this set up, <em>Publish to GitHub</em> commits the files straight to the repo. Without it, the buttons fall back to downloading the files so you can upload them by hand.</p>
-
-      <div class="callout">
-        <p><b>This key is the real lock, not the login.</b> The admin password only hides the panel — anyone can read the JavaScript and bypass it. What actually stops a stranger from rewriting your knowledge base is this key, because it lives in the Worker and never in the repo.</p>
-        <p>The leaderboard endpoint stays open on purpose: it's a game. These two are not.</p>
-      </div>
-
-      <div class="f">
-        <label class="lbl" for="pubUrl">Worker address</label>
-        <input class="inp" id="pubUrl" placeholder="https://rollback-leaderboard.overeyeinfo.workers.dev">
-      </div>
-      <div class="f">
-        <label class="lbl" for="pubKey">Publish key</label>
-        <input class="inp" id="pubKey" type="password" placeholder="the same value as ADMIN_TOKEN on the Worker">
-      </div>
-      <div class="row">
-        <button class="btn2" id="pubGen">Generate a new key</button>
-        <button class="btn2" id="pubTest">Test connection</button>
-        <span style="flex:1"></span>
-        <button class="btn2 btn2--solid" id="pubSave">Save</button>
-      </div>
-      <div id="pubNew" hidden></div>
-      <p class="note" id="pubMsg"></p>
-
-      <h3>How to switch it on</h3>
-      <div class="steps">
-        <div class="step"><b>Generate a key</b>The button above makes a random one and shows it once. It stays in this browser only.</div>
-        <div class="step"><b>Put it on the Worker</b>Cloudflare → your Worker → <em>Settings → Variables and Secrets</em> → add <code>ADMIN_TOKEN</code> as a <b>Secret</b>, with that value. Then Deploy.</div>
-        <div class="step"><b>Update the Worker code</b>Paste the latest <code>worker/leaderboard.js</code> and deploy: the old version doesn't know the <code>/kb</code> and <code>/users</code> routes yet.</div>
-        <div class="step"><b>Test connection</b>It should answer <em>publishing is on</em>.</div>
-      </div>
-
-      <div class="callout">
-        <p><b>After publishing, give it a minute.</b> The commit triggers a GitHub Pages rebuild; the site picks up the change once that finishes. Then <code>Ctrl+Shift+R</code>, or you'll see the cached version.</p>
-      </div>
-    </section>
 
   </main>
 </div>

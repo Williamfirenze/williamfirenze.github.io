@@ -55,6 +55,10 @@
       $('#panel').hidden = false;
       $('#logout').hidden = false;
       try { sessionStorage.setItem('wf_admin', '1'); } catch (err) {}
+      msg($('#loginMsg'), 'unlocking…');
+      pubToken = await deriveToken($('#p').value);
+      try { sessionStorage.setItem('wf_admin_pt', pubToken); } catch (err) {}
+      msg($('#loginMsg'), '');
       renderKB(); renderUsers();
     } else {
       msg($('#loginMsg'), 'wrong user or password', 'err');
@@ -62,11 +66,12 @@
     }
   });
   $('#logout').addEventListener('click', function () {
-    try { sessionStorage.removeItem('wf_admin'); } catch (e) {}
+    try { sessionStorage.removeItem('wf_admin'); sessionStorage.removeItem('wf_admin_pt'); } catch (e) {}
     location.reload();
   });
   try {
     if (sessionStorage.getItem('wf_admin') === '1') {
+      pubToken = sessionStorage.getItem('wf_admin_pt');
       $('#login').hidden = true; $('#panel').hidden = false; $('#logout').hidden = false;
     }
   } catch (e) {}
@@ -503,94 +508,70 @@
 
 
   /* =======================================================
-     PUBBLICAZIONE — scrive sul repo passando dal Worker
+     PUBBLICAZIONE
+     -------------------------------------------------------
+     Nessuna chiave da ricordare: la chiave di pubblicazione
+     si ricava dalla password del login con PBKDF2. Entri, e
+     il pulsante funziona — su qualsiasi browser, anche in
+     incognito, senza niente salvato da nessuna parte.
      ======================================================= */
-  var pub = lget(LS.pub, { url: 'https://rollback-leaderboard.overeyeinfo.workers.dev', key: '' });
+  var WORKER = 'https://rollback-leaderboard.overeyeinfo.workers.dev';
+  var SALT = 'wf-publish-v1';
+  var ITER = 250000;          // rende improponibile provare password a raffica
+  var pubToken = null;
 
-  function pubReady() { return !!(pub.url && pub.key); }
+  async function deriveToken(password) {
+    var mat = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+    var bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: new TextEncoder().encode(SALT), iterations: ITER, hash: 'SHA-256' },
+      mat, 256);
+    return Array.from(new Uint8Array(bits)).map(function (x) { return x.toString(16).padStart(2, '0'); }).join('');
+  }
 
   function publish(path, payload) {
-    if (!pubReady()) return Promise.reject(new Error('publishing is not set up'));
-    return fetch(pub.url.replace(/\/+$/, '') + path, {
+    if (!pubToken) return Promise.reject(new Error('log in again to publish'));
+    return fetch(WORKER + path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': pub.key },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': pubToken },
       body: JSON.stringify(payload)
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
+        if (r.status === 401 || r.status === 503) { showSetup(); throw new Error(j.error || 'publishing not enabled on the Worker'); }
         if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
         return j;
       });
     });
   }
 
-  function paintPub() {
-    $('#pubUrl').value = pub.url || '';
-    $('#pubKey').value = pub.key || '';
-    var ready = pubReady();
-    ['#kbPublish', '#usPublish'].forEach(function (sel) {
-      var b = $(sel);
-      if (!b) return;
-      b.disabled = !ready;
-      b.title = ready ? 'Commits straight to the repo' : 'Set it up in the Publishing tab';
-
-      /* un pulsante spento senza spiegazione e' un difetto: qui dice perche' */
-      var hint = b.parentElement.querySelector('.pubhint');
-      if (!hint) {
-        hint = document.createElement('button');
-        hint.type = 'button';
-        hint.className = 'pubhint';
-        hint.innerHTML = '<b>Publish is off.</b> It needs the Worker address and the publish key — set them in the <u>Publishing</u> tab.';
-        hint.addEventListener('click', function () { $('[data-tab="pub"]').click(); });
-        b.parentElement.appendChild(hint);
-      }
-      hint.hidden = ready;
-    });
-  }
-
-  $('#pubSave').addEventListener('click', function () {
-    pub.url = $('#pubUrl').value.trim().replace(/\/+$/, '');
-    pub.key = $('#pubKey').value.trim();
-    lset(LS.pub, pub);
-    paintPub();
-    msg($('#pubMsg'), pubReady() ? 'saved in this browser' : 'address and key are both required', pubReady() ? 'ok' : 'err');
-  });
-
-  $('#pubGen').addEventListener('click', function () {
-    var b = new Uint8Array(32);
-    crypto.getRandomValues(b);
-    var key = Array.from(b).map(function (x) { return x.toString(16).padStart(2, '0'); }).join('');
-    $('#pubKey').value = key;
-    var box = $('#pubNew');
+  /* compare solo se il Worker rifiuta: dice cosa incollare su Cloudflare */
+  function showSetup() {
+    var box = $('#pubSetup');
+    if (!box || !pubToken) return;
     box.hidden = false;
-    box.innerHTML = '<div class="callout"><p><b>New publish key.</b> Copy it into Cloudflare as the secret <code>ADMIN_TOKEN</code>, then press Save here.</p>' +
-      '<div class="codebox" style="font-size:12px;letter-spacing:.04em;word-break:break-all">' + esc(key) + '</div>' +
-      '<p>Shown once. If you lose it, generate another one and update the Worker.</p></div>';
-    msg($('#pubMsg'), '');
-  });
-
-  $('#pubTest').addEventListener('click', function () {
-    var url = $('#pubUrl').value.trim().replace(/\/+$/, '');
-    if (!url) { msg($('#pubMsg'), 'the Worker address is missing', 'err'); return; }
-    msg($('#pubMsg'), 'checking…');
-    fetch(url + '/ping')
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (d.publishing) msg($('#pubMsg'), 'Worker reachable — publishing is on', 'ok');
-        else msg($('#pubMsg'), 'Worker reachable, but ADMIN_TOKEN is not set on it yet', 'err');
-      })
-      .catch(function () { msg($('#pubMsg'), 'no answer — check the address, or the Worker still runs the old code', 'err'); });
-  });
+    box.innerHTML = '<div class="callout"><p><b>One-off setup.</b> Publishing is refused because the Worker does not know this key yet. ' +
+      'On Cloudflare open your Worker → <em>Settings → Variables and Secrets</em>, set the secret ' +
+      '<code>ADMIN_TOKEN</code> to the value below, then Deploy. You will never need to do this again.</p>' +
+      '<div class="codebox" style="font-size:11px;letter-spacing:.03em;word-break:break-all" id="pubTok">' + esc(pubToken) + '</div>' +
+      '<div class="row row--end" style="margin:0"><button class="btn2" id="pubCopy">Copy</button>' +
+      '<button class="btn2" id="pubHide">Hide</button></div></div>';
+    $('#pubCopy').addEventListener('click', function () {
+      var b = this;
+      navigator.clipboard.writeText(pubToken).then(function () {
+        b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+      });
+    });
+    $('#pubHide').addEventListener('click', function () { box.hidden = true; });
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   $('#kbPublish').addEventListener('click', function () {
     if (!kb.length) { msg($('#kbMsg'), 'nothing to publish', 'err'); return; }
     var btn = this; btn.disabled = true;
     msg($('#kbMsg'), 'publishing…');
     publish('/kb', { version: 1, articles: exportableKB() })
-      .then(function (d) {
-        msg($('#kbMsg'), 'published — ' + d.count + ' runbook(s) committed. Live in about a minute.', 'ok');
-      })
+      .then(function (d) { msg($('#kbMsg'), 'published — ' + d.count + ' runbook(s) committed. Live in about a minute.', 'ok'); })
       .catch(function (e) { msg($('#kbMsg'), 'not published: ' + e.message, 'err'); })
-      .then(function () { btn.disabled = !pubReady(); });
+      .then(function () { btn.disabled = false; });
   });
 
   $('#usPublish').addEventListener('click', function () {
@@ -602,14 +583,10 @@
       note: 'Only SHA-256 hashes of the access codes are stored here.',
       users: exportableUsers()
     })
-      .then(function (d) {
-        msg($('#usMsg'), 'published — ' + d.count + ' code(s) committed. Live in about a minute.', 'ok');
-      })
+      .then(function (d) { msg($('#usMsg'), 'published — ' + d.count + ' code(s) committed. Live in about a minute.', 'ok'); })
       .catch(function (e) { msg($('#usMsg'), 'not published: ' + e.message, 'err'); })
-      .then(function () { btn.disabled = !pubReady(); });
+      .then(function () { btn.disabled = false; });
   });
-
-  paintPub();
 
   renderKB(); renderUsers();
 
