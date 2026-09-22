@@ -3,10 +3,10 @@
   "note": "Only SHA-256 hashes of the access codes are stored here.",
   "users": [
     {
-      "h": "5748a901f565705d043408b162d87e4f1ec796071d0be36a36027c9688c7bc2d",
-      "name": "Francesco",
+      "h": "26d28c476ba590ee502de06adaf8a4ccff22af32aecbddae1a6809f6931611c4",
+      "name": "Gianmarco",
       "role": "Oracle DBA",
-      "team": "Avanade",
+      "team": "Accenture",
       "active": true
     }
   ],
