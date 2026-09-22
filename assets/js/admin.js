@@ -424,8 +424,16 @@
     box.hidden = false;
     box.innerHTML = '<div class="callout"><p><b>Code for ' + esc(name) + '</b> — send it to them now.</p>' +
       '<div class="codebox">' + esc(code) + '</div>' +
-      '<p>It goes live once you export <code>users.json</code> and upload it to the repo.</p></div>';
+      '<p id="usLive">Publishing it now…</p></div>';
     msg($('#usMsg'), '');
+    // una azione sola: crea e pubblica. Niente piu' codici generati e mai messi online.
+    publishUsers(null, '').then(function (ok) {
+      var line = $('#usLive');
+      if (!line) return;
+      line.innerHTML = ok
+        ? 'Published. Usable in about a minute — give the page a hard refresh (<code>Ctrl+Shift+R</code>) before testing it.'
+        : 'Not published yet — see the message below, then press <b>Publish to GitHub</b>.';
+    });
   });
 
   $('#usExport').addEventListener('click', function () {
@@ -618,24 +626,28 @@
       .then(function () { btn.disabled = false; });
   });
 
-  $('#usPublish').addEventListener('click', function () {
-    if (!users.length) { msg($('#usMsg'), 'nothing to publish', 'err'); return; }
-    var btn = this; btn.disabled = true;
-    msg($('#usMsg'), 'checking what is online…');
-    confirmLoss('users.json', 'users', function (u) { return u.h; }, users, 'code(s)')
+  function publishUsers(btn, prefix) {
+    if (!users.length) { msg($('#usMsg'), 'nothing to publish', 'err'); return Promise.resolve(false); }
+    if (btn) btn.disabled = true;
+    msg($('#usMsg'), (prefix || '') + 'checking what is online…');
+    return confirmLoss('users.json', 'users', function (u) { return u.h; }, users, 'code(s)')
       .then(function (go) {
-        if (!go) { msg($('#usMsg'), 'cancelled — nothing was published', 'err'); btn.disabled = false; return; }
-        msg($('#usMsg'), 'publishing…');
+        if (!go) { msg($('#usMsg'), 'cancelled — nothing was published', 'err'); return false; }
+        msg($('#usMsg'), (prefix || '') + 'publishing…');
         return publish('/users', {
-      version: 1,
-      note: 'Only SHA-256 hashes of the access codes are stored here.',
-      users: exportableUsers()
-    })
-          .then(function (d) { msg($('#usMsg'), 'published — ' + d.count + ' code(s) committed. Live in about a minute.', 'ok'); });
+          version: 1,
+          note: 'Only SHA-256 hashes of the access codes are stored here.',
+          users: exportableUsers()
+        }).then(function (d) {
+          msg($('#usMsg'), (prefix || '') + 'published — ' + d.count + ' code(s) online. Live in about a minute.', 'ok');
+          return true;
+        });
       })
-      .catch(function (e) { msg($('#usMsg'), 'not published: ' + e.message, 'err'); })
-      .then(function () { btn.disabled = false; });
-  });
+      .catch(function (e) { msg($('#usMsg'), 'not published: ' + e.message, 'err'); return false; })
+      .then(function (ok) { if (btn) btn.disabled = false; return ok; });
+  }
+
+  $('#usPublish').addEventListener('click', function () { publishUsers(this, ''); });
 
   renderKB(); renderUsers();
 
