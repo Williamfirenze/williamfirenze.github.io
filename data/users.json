@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "updated": "2026-09-22",
-  "note": "Only SHA-256 hashes of the access codes are stored here. The codes themselves exist nowhere in this repo.",
+  "note": "Only SHA-256 hashes of the access codes are stored here.",
   "users": [
     {
-      "h": "88f575f49d9040a030bcadc26ed76aa4963e138c11f3430b902fd52f00fcb49c",
-      "name": "William Firenze",
-      "role": "Owner",
-      "team": "—",
+      "h": "5748a901f565705d043408b162d87e4f1ec796071d0be36a36027c9688c7bc2d",
+      "name": "Francesco",
+      "role": "Oracle DBA",
+      "team": "Avanade",
       "active": true
     }
-  ]
+  ],
+  "updated": "2026-09-22"
 }
