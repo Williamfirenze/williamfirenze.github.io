@@ -60,6 +60,7 @@
       try { sessionStorage.setItem('wf_admin_pt', pubToken); } catch (err) {}
       msg($('#loginMsg'), '');
       renderKB(); renderUsers();
+      autoLoad();
     } else {
       msg($('#loginMsg'), 'wrong user or password', 'err');
       $('#p').value = ''; $('#p').focus();
@@ -73,6 +74,7 @@
     if (sessionStorage.getItem('wf_admin') === '1') {
       pubToken = sessionStorage.getItem('wf_admin_pt');
       $('#login').hidden = true; $('#panel').hidden = false; $('#logout').hidden = false;
+      setTimeout(autoLoad, 60);
     }
   } catch (e) {}
 
@@ -507,6 +509,13 @@
   });
 
 
+  /* browser nuovo: parte da quello che c'e' gia' online, cosi'
+     non si rischia di pubblicare una lista vuota sopra a quella buona */
+  function autoLoad() {
+    if (!kb.length && $('#kbLoad')) $('#kbLoad').click();
+    if (!users.length && $('#usLoad')) $('#usLoad').click();
+  }
+
   /* =======================================================
      PUBBLICAZIONE
      -------------------------------------------------------
@@ -564,12 +573,47 @@
     box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+
+  /* -------------------------------------------------------
+     Rete di sicurezza: pubblicare SOSTITUISCE il file intero.
+     Se la lista di questo browser e' piu' corta di quella
+     online, qualcuno sparirebbe senza accorgersene.
+     ------------------------------------------------------- */
+  function liveList(file, key) {
+    return fetch('../data/' + file, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (d) { return (d && d[key]) || []; })
+      .catch(function () { return null; });   // null = non lo so, non blocco
+  }
+
+  function confirmLoss(file, key, idOf, mine, label) {
+    return liveList(file, key).then(function (live) {
+      if (!live || !live.length) return true;
+      var have = {};
+      mine.forEach(function (x) { have[idOf(x)] = 1; });
+      var lost = live.filter(function (x) { return !have[idOf(x)]; });
+      if (!lost.length) return true;
+      var names = lost.map(function (x) { return '  • ' + (x.name || x.title || idOf(x)); }).join('\n');
+      return confirm(
+        'Careful: publishing replaces the whole file.\n\n' +
+        lost.length + ' ' + label + ' currently online ' + (lost.length === 1 ? 'is' : 'are') +
+        ' NOT in this browser and would be deleted:\n\n' + names +
+        '\n\nUse "Load from site" first to pull them in.\n\nPublish anyway?'
+      );
+    });
+  }
+
   $('#kbPublish').addEventListener('click', function () {
     if (!kb.length) { msg($('#kbMsg'), 'nothing to publish', 'err'); return; }
     var btn = this; btn.disabled = true;
-    msg($('#kbMsg'), 'publishing…');
-    publish('/kb', { version: 1, articles: exportableKB() })
-      .then(function (d) { msg($('#kbMsg'), 'published — ' + d.count + ' runbook(s) committed. Live in about a minute.', 'ok'); })
+    msg($('#kbMsg'), 'checking what is online…');
+    confirmLoss('kb.json', 'articles', function (a) { return a.id; }, kb, 'runbook(s)')
+      .then(function (go) {
+        if (!go) { msg($('#kbMsg'), 'cancelled — nothing was published', 'err'); btn.disabled = false; return; }
+        msg($('#kbMsg'), 'publishing…');
+        return publish('/kb', { version: 1, articles: exportableKB() })
+          .then(function (d) { msg($('#kbMsg'), 'published — ' + d.count + ' runbook(s) committed. Live in about a minute.', 'ok'); });
+      })
       .catch(function (e) { msg($('#kbMsg'), 'not published: ' + e.message, 'err'); })
       .then(function () { btn.disabled = false; });
   });
@@ -577,13 +621,18 @@
   $('#usPublish').addEventListener('click', function () {
     if (!users.length) { msg($('#usMsg'), 'nothing to publish', 'err'); return; }
     var btn = this; btn.disabled = true;
-    msg($('#usMsg'), 'publishing…');
-    publish('/users', {
+    msg($('#usMsg'), 'checking what is online…');
+    confirmLoss('users.json', 'users', function (u) { return u.h; }, users, 'code(s)')
+      .then(function (go) {
+        if (!go) { msg($('#usMsg'), 'cancelled — nothing was published', 'err'); btn.disabled = false; return; }
+        msg($('#usMsg'), 'publishing…');
+        return publish('/users', {
       version: 1,
       note: 'Only SHA-256 hashes of the access codes are stored here.',
       users: exportableUsers()
     })
-      .then(function (d) { msg($('#usMsg'), 'published — ' + d.count + ' code(s) committed. Live in about a minute.', 'ok'); })
+          .then(function (d) { msg($('#usMsg'), 'published — ' + d.count + ' code(s) committed. Live in about a minute.', 'ok'); });
+      })
       .catch(function (e) { msg($('#usMsg'), 'not published: ' + e.message, 'err'); })
       .then(function () { btn.disabled = false; });
   });
